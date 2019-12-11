@@ -54,12 +54,79 @@ async function init() {
         answers = await inquirer.prompt(addTeamMember_q);
       }
 
-      team.map(employee => {
-        console.log(employee.getName());
-      });
+      let html = await render(team);
+      await fs.writeFile("./output/index.html", html);
     } else {
       console.log("Bye!");
     }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function replace(data, employee) {
+  const result = data.replace(/{{([a-z]+)}}/gi, (match_full, match) => {
+    let replacement = "";
+    switch (match) {
+      case "role":
+        replacement = employee.getRole();
+        break;
+      case "name":
+        replacement = employee.getName();
+        break;
+      case "id":
+        replacement = employee.getId();
+        break;
+      case "officeNumber":
+        replacement = employee.getOfficeNumber();
+        break;
+      case "school":
+        replacement = employee.getSchool();
+        break;
+      case "github":
+        replacement = employee.getGithub();
+      case "email":
+        replacement = employee.getEmail();
+        break;
+      default:
+        break;
+    }
+    return replacement;
+  });
+  return result;
+}
+
+async function render(team) {
+  try {
+    const main = await fs.readFile("./templates/main.html", "utf-8");
+    const manager = await fs.readFile("./templates/manager.html", "utf-8");
+    const intern = await fs.readFile("./templates/intern.html", "utf-8");
+    const engineer = await fs.readFile("./templates/engineer.html", "utf-8");
+    const teamHTML = team.map(employee => {
+      let data = "";
+      switch (employee.getRole()) {
+        case "Manager":
+          data = manager;
+          break;
+        case "Engineer":
+          data = engineer;
+          break;
+        case "Intern":
+          data = intern;
+          break;
+        default:
+          break;
+      }
+      data = replace(data, employee);
+      return data;
+    });
+
+    return main.replace(
+      "{{target}}",
+      teamHTML.reduce((prev, curr) => {
+        return prev + curr;
+      })
+    );
   } catch (error) {
     console.error(error);
   }

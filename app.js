@@ -50,11 +50,11 @@ async function init() {
           );
           console.log("Engineer added");
         }
-
         answers = await inquirer.prompt(addTeamMember_q);
       }
-
+      // generate the html
       let html = await render(team);
+      // save it to disk
       await fs.writeFile("./output/index.html", html);
     } else {
       console.log("Bye!");
@@ -64,8 +64,8 @@ async function init() {
   }
 }
 
-function replace(data, employee) {
-  const result = data.replace(/{{([a-z]+)}}/gi, (match_full, match) => {
+function replace(template, employee) {
+  const result = template.replace(/{{([a-z]+)}}/gi, (match_full, match) => {
     let replacement = "";
     switch (match) {
       case "role":
@@ -96,37 +96,21 @@ function replace(data, employee) {
   return result;
 }
 
-async function render(team) {
+async function render(team = []) {
   try {
-    const main = await fs.readFile("./templates/main.html", "utf-8");
-    const manager = await fs.readFile("./templates/manager.html", "utf-8");
-    const intern = await fs.readFile("./templates/intern.html", "utf-8");
-    const engineer = await fs.readFile("./templates/engineer.html", "utf-8");
-    const teamHTML = team.map(employee => {
-      let data = "";
-      switch (employee.getRole()) {
-        case "Manager":
-          data = manager;
-          break;
-        case "Engineer":
-          data = engineer;
-          break;
-        case "Intern":
-          data = intern;
-          break;
-        default:
-          break;
-      }
-      data = replace(data, employee);
-      return data;
-    });
-
-    return main.replace(
-      "{{target}}",
-      teamHTML.reduce((prev, curr) => {
-        return prev + curr;
+    const teamHTML = await team
+      .map(async employee => {
+        const template = await fs.readFile(
+          `./templates/${employee.getRole().toLowerCase()}.html`,
+          "utf-8"
+        );
+        return replace(template, employee);
       })
-    );
+      .reduce(async (prev, curr) => (await prev) + (await curr));
+
+    const main = await fs.readFile("./templates/main.html", "utf-8");
+
+    return main.replace("{{target}}", teamHTML);
   } catch (error) {
     console.error(error);
   }
